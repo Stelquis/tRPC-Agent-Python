@@ -35,6 +35,8 @@ class TestSafetyFilter:
 
     def test_filter_is_registered(self):
         """SafetyFilter should be registered with the TOOL filter type."""
+        # 确保模块导入触发 @register_tool_filter 装饰器
+        from trpc_agent_sdk.tools.safety import _safety_filter  # noqa: F401
         from trpc_agent_sdk.filter import get_tool_filter
         filter_instance = get_tool_filter("safety_filter")
         assert filter_instance is not None
