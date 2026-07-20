@@ -81,10 +81,8 @@ class SafetyFilter(BaseFilter):
                 self._policy = SafetyPolicy.from_file(path)
                 logger.info("SafetyFilter: Loaded policy from %s", path)
             else:
-                raise FileNotFoundError(
-                    f"SafetyFilter: Policy file not found at {path}. "
-                    f"Create tool_safety_policy.yaml or pass a valid policy_path."
-                )
+                raise FileNotFoundError(f"SafetyFilter: Policy file not found at {path}. "
+                                        f"Create tool_safety_policy.yaml or pass a valid policy_path.")
         self._scanner = SafetyScanner(self._policy)
         self._audit_logger = AuditLogger()
 
