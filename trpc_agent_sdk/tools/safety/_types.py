@@ -284,7 +284,7 @@ class AuditEvent:
             "tool.safety.decision": self.decision,
             "tool.safety.risk_level": self.risk_level,
             "tool.safety.rule_id": self.rule_id,
-            "tool.safety.blocked": str(self.blocked),
-            "tool.safety.masked": str(self.masked),
+            "tool.safety.blocked": "true" if self.blocked else "false",
+            "tool.safety.masked": "true" if self.masked else "false",
             "tool.safety.duration_ms": str(self.scan_duration_ms),
         }

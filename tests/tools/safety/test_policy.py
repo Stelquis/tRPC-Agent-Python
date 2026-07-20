@@ -58,7 +58,6 @@ class TestSafetyPolicy:
     def test_whitelists_populated(self, policy: SafetyPolicy):
         """Whitelists should have entries."""
         assert len(policy.allowed_domains) > 0
-        assert len(policy.allowed_commands) > 0
         assert len(policy.forbidden_paths) > 0
 
     def test_domain_allowed(self, policy: SafetyPolicy):
@@ -79,15 +78,6 @@ class TestSafetyPolicy:
         """Normal path should not be forbidden."""
         assert policy.is_path_forbidden("/tmp/test.txt") is False
         assert policy.is_path_forbidden("/home/user/file.py") is False
-
-    def test_command_allowed(self, policy: SafetyPolicy):
-        """Whitelisted command should be allowed."""
-        assert policy.is_command_allowed("ls") is True
-        assert policy.is_command_allowed("cat") is True
-
-    def test_command_not_allowed(self, policy: SafetyPolicy):
-        """Non-whitelisted command should be rejected."""
-        assert policy.is_command_allowed("dd") is False
 
     def test_default_decision(self, policy: SafetyPolicy):
         """Default decision should be NEEDS_HUMAN_REVIEW."""

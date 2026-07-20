@@ -50,7 +50,6 @@ class RuleConfig:
     risk_level: RiskLevel = RiskLevel.HIGH
     patterns: list[str] = field(default_factory=list)
     check_domains: bool = False
-    trigger_commands: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -75,7 +74,6 @@ class SafetyPolicy:
     max_output_size_bytes: int = 10 * 1024 * 1024  # 10 MB
     default_decision: SafetyDecision = SafetyDecision.NEEDS_HUMAN_REVIEW
     allowed_domains: list[str] = field(default_factory=list)
-    allowed_commands: list[str] = field(default_factory=list)
     forbidden_paths: list[str] = field(default_factory=list)
     rules: dict[str, RuleConfig] = field(default_factory=dict)
     policy_version: str = ""
@@ -129,8 +127,11 @@ class SafetyPolicy:
 
         # ── Whitelists ──
         policy.allowed_domains = raw.get("allowed_domains", [])
-        policy.allowed_commands = raw.get("allowed_commands", [])
+        if not isinstance(policy.allowed_domains, list):
+            raise TypeError("allowed_domains must be a list")
         policy.forbidden_paths = raw.get("forbidden_paths", [])
+        if not isinstance(policy.forbidden_paths, list):
+            raise TypeError("forbidden_paths must be a list")
 
         # ── Rules ──
         rules_raw = raw.get("rules", {})
@@ -143,7 +144,6 @@ class SafetyPolicy:
                 risk_level=_parse_risk_level(rule_cfg.get("risk_level", "high")),
                 patterns=rule_cfg.get("patterns", []),
                 check_domains=rule_cfg.get("check_domains", False),
-                trigger_commands=rule_cfg.get("trigger_commands", []),
             )
 
         policy.policy_version = raw.get("policy_version", "")
@@ -179,19 +179,6 @@ class SafetyPolicy:
         if not self.allowed_domains:
             return False
         return any(domain == d or domain.endswith(f".{d}") for d in self.allowed_domains)
-
-    def is_command_allowed(self, command: str) -> bool:
-        """Check if a command is in the allowed commands whitelist.
-
-        Args:
-            command: The base command to check (e.g. ``ls``).
-
-        Returns:
-            True if the command is allowed, False otherwise.
-        """
-        if not self.allowed_commands:
-            return False
-        return command in self.allowed_commands
 
     def is_path_forbidden(self, path: str) -> bool:
         """Check if a path matches any forbidden path pattern.

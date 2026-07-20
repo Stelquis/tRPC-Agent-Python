@@ -81,13 +81,10 @@ class SafetyFilter(BaseFilter):
                 self._policy = SafetyPolicy.from_file(path)
                 logger.info("SafetyFilter: Loaded policy from %s", path)
             else:
-                logger.warning(
-                    "SafetyFilter: Policy file not found at %s, "
-                    "using default empty policy. Create tool_safety_policy.yaml "
-                    "to enable full protection.",
-                    path,
+                raise FileNotFoundError(
+                    f"SafetyFilter: Policy file not found at {path}. "
+                    f"Create tool_safety_policy.yaml or pass a valid policy_path."
                 )
-                self._policy = SafetyPolicy()
         self._scanner = SafetyScanner(self._policy)
         self._audit_logger = AuditLogger()
 
@@ -119,7 +116,7 @@ class SafetyFilter(BaseFilter):
         script_type = self._detect_script_type(req, script_content)
 
         # Get tool name from context
-        tool_name = self._get_tool_name(ctx, req)
+        tool_name = self._get_tool_name(req)
 
         # Build scan input
         scan_input = ScanInput(
@@ -129,7 +126,7 @@ class SafetyFilter(BaseFilter):
             working_directory=req.get("cwd") or req.get("working_directory"),
             env_vars=req.get("env") or req.get("env_vars"),
             tool_name=tool_name,
-            tool_metadata={"tool_type": self._get_tool_type(ctx)},
+            tool_metadata={"tool_type": self._get_tool_type()},
         )
 
         # Run the scan
@@ -154,9 +151,14 @@ class SafetyFilter(BaseFilter):
                 ",".join(m.rule_id for m in report.matches),
             )
         elif report.needs_review:
-            # For NEEDS_HUMAN_REVIEW, we log but allow (configurable)
-            logger.info(
-                "SafetyFilter: Tool '%s' needs human review — "
+            # NEEDS_HUMAN_REVIEW: 默认拦截，确保安全
+            rsp.is_continue = False
+            rsp.error = SafetyBlockedError(
+                tool_name=tool_name,
+                report=report,
+            )
+            logger.warning(
+                "SafetyFilter: Blocked execution of tool '%s' — "
                 "decision=%s risk=%s rules=%s",
                 tool_name,
                 report.decision.name,
@@ -207,8 +209,8 @@ class SafetyFilter(BaseFilter):
         return SafetyScanner._detect_script_type(content)
 
     @staticmethod
-    def _get_tool_name(ctx: AgentContext, args: dict) -> str:
-        """Get the tool name from context or arguments."""
+    def _get_tool_name(args: dict) -> str:
+        """Get the tool name from arguments."""
         name = args.get("name") or args.get("tool_name") or ""
         if name:
             return name
@@ -223,7 +225,7 @@ class SafetyFilter(BaseFilter):
         return "unknown"
 
     @staticmethod
-    def _get_tool_type(ctx: AgentContext) -> str:
+    def _get_tool_type() -> str:
         """Get the tool type from context."""
         try:
             from trpc_agent_sdk.tools._context_var import get_tool_var  # noqa: E811

@@ -47,7 +47,7 @@ def main():
     args = parser.parse_args()
 
     if args.version:
-        from trpc_agent_sdk.tools.safety import __version__ as ver
+        from trpc_agent_sdk.version import __version__ as ver
         print(f"tool-safety-check version {ver}")
         return
 

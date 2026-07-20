@@ -25,31 +25,6 @@ allowed_domains:
   - "pypi.org"
   - "files.pythonhosted.org"
 
-# 允许命令（Bash）—— 放行的基础命令
-allowed_commands:
-  - "ls"
-  - "pwd"
-  - "echo"
-  - "cat"
-  - "grep"
-  - "find"
-  - "head"
-  - "tail"
-  - "wc"
-  - "sort"
-  - "uniq"
-  - "python3"
-  - "pip3"
-  - "npm"
-  - "git"
-  - "curl"
-  - "wget"
-  - "mkdir"
-  - "cp"
-  - "mv"
-  - "rm"
-  - "chmod"
-
 # 禁止路径 —— 禁止读写访问的路径模式（支持 glob 通配符）
 forbidden_paths:
   - "~/.ssh/*"
@@ -117,7 +92,7 @@ rules:
       - "os.popen"
       - "pty.spawn"
       - "sudo"
-      - "su "
+      - "\\bsu\\b"
       - "chsh"
       - "passwd"
 

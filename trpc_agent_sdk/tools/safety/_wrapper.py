@@ -21,7 +21,7 @@ Usage::
         tool_name="Bash",
         script_content="rm -rf /",
         script_type="bash",
-        execute_fn=lambda: run_bash_command("rm -rf /"),
+        execute_fn=lambda: "safe result",
     )
     # result["blocked"] == True
     # result["report"] contains the SafetyReport
@@ -138,8 +138,8 @@ class SafetyWrapper:
         # Audit
         self._audit_logger.log_report(report)
 
-        # Check if blocked
-        if report.is_blocked:
+        # Check if blocked or needs review
+        if report.is_blocked or report.needs_review:
             rule_ids = ",".join(m.rule_id for m in report.matches)
             msg = (f"Tool '{tool_name}' execution blocked: "
                    f"decision={report.decision.name}, "

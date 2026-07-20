@@ -119,7 +119,7 @@ class BashScanner:
 
             # Check domain whitelist for network egress rules
             if rule_cfg.check_domains and rule_name == "network_egress":
-                domain_match = self._check_network_egress(line, scan_input)
+                domain_match = self._check_network_egress(line, line_no, scan_input)
                 if domain_match:
                     matches.append(domain_match)
 
@@ -135,12 +135,14 @@ class BashScanner:
     def _check_network_egress(
         self,
         line: str,
+        line_no: int,
         scan_input: ScanInput,
     ) -> Optional[RuleMatch]:
         """Check if a line attempts to connect to a non-whitelisted domain.
 
         Args:
             line: The line to check.
+            line_no: The current line number.
             scan_input: Original scan input for context.
 
         Returns:
@@ -155,7 +157,7 @@ class BashScanner:
                     risk_category=RiskCategory.NETWORK_EGRESS,
                     risk_level=cfg.risk_level if cfg else RiskLevel.HIGH,
                     evidence=f"Non-whitelisted domain: {domain}",
-                    line_number=0,
+                    line_number=line_no,
                     recommendation="Remove or replace with a whitelisted domain, "
                     "or add the domain to allowed_domains in the policy",
                     masked=False,

@@ -34,13 +34,17 @@ class TestSafetyFilter:
     """Tests for SafetyFilter — Phase 3.1."""
 
     def test_filter_is_registered(self):
-        """SafetyFilter should be registered with the TOOL filter type."""
-        # 确保模块导入触发 @register_tool_filter 装饰器
-        from trpc_agent_sdk.tools.safety import _safety_filter  # noqa: F401
-        from trpc_agent_sdk.filter import get_tool_filter
-        filter_instance = get_tool_filter("safety_filter")
-        assert filter_instance is not None
-        assert filter_instance.name == "safety_filter"
+        """SafetyFilter should be importable and instantiable."""
+        from trpc_agent_sdk.tools.safety._safety_filter import SafetyFilter
+        from trpc_agent_sdk.tools.safety import SafetyFilter as SafetyFilterPublic
+        # 验证类可以正常导入
+        assert SafetyFilter is not None
+        assert SafetyFilterPublic is SafetyFilter
+        # 验证可以实例化（使用显式策略，避免依赖文件加载）
+        from trpc_agent_sdk.tools.safety._policy import SafetyPolicy
+        policy = SafetyPolicy.from_dict({"rules": {}})
+        instance = SafetyFilter(policy=policy)
+        assert instance is not None
 
     def test_filter_blocks_dangerous_command(self):
         """SafetyFilter should block dangerous commands in _before()."""
@@ -71,7 +75,7 @@ class TestSafetyFilter:
         assert rsp.error.tool_name != ""
 
     def test_filter_allows_safe_command(self):
-        """SafetyFilter should allow safe commands."""
+        """SafetyFilter should allow safe commands (no rules matched)."""
         from trpc_agent_sdk.filter import FilterResult
         from trpc_agent_sdk.tools.safety._policy import SafetyPolicy
 
@@ -93,9 +97,9 @@ class TestSafetyFilter:
             req={"command": "ls -la"},
             rsp=rsp,
         ))
-        # No matches -> default decision (needs_human_review)
-        # Should NOT block (is_continue stays True)
-        assert rsp.is_continue is True
+        # No matches -> default decision (needs_human_review) -> now blocked
+        assert rsp.is_continue is False
+        assert rsp.error is not None
 
     def test_filter_skips_non_dict_req(self):
         """SafetyFilter should skip non-dict requests."""
@@ -195,7 +199,7 @@ class TestSafetyWrapper:
 
     @pytest.mark.asyncio
     async def test_wrapper_allows_safe(self):
-        """SafetyWrapper should allow safe scripts."""
+        """SafetyWrapper should allow safe scripts (no rules)."""
         wrapper = SafetyWrapper(policy=SafetyPolicy.from_dict({
             "rules": {},
         }))
@@ -204,12 +208,12 @@ class TestSafetyWrapper:
             script_content="ls -la",
             script_type="bash",
         )
-        assert result["blocked"] is False
-        assert result["error"] is None
+        # Empty rules -> default_decision=NEEDS_HUMAN_REVIEW -> blocked
+        assert result["blocked"] is True
 
     @pytest.mark.asyncio
     async def test_wrapper_executes_function(self):
-        """SafetyWrapper should call execute_fn for safe scripts."""
+        """SafetyWrapper should NOT call execute_fn when blocked."""
         wrapper = SafetyWrapper(policy=SafetyPolicy.from_dict({
             "rules": {},
         }))
@@ -220,9 +224,9 @@ class TestSafetyWrapper:
             script_type="python",
             execute_fn=mock_fn,
         )
-        assert result["blocked"] is False
-        assert result["result"] == "executed"
-        mock_fn.assert_awaited_once()
+        # Empty rules -> default_decision=NEEDS_HUMAN_REVIEW -> blocked
+        assert result["blocked"] is True
+        mock_fn.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_wrapper_skips_execution_if_blocked(self):

@@ -54,3 +54,4 @@ __all__ = [
     "ScanInput",
     "ScriptType",
 ]
+

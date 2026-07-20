@@ -99,8 +99,8 @@ class TestPhase1DataModel:
         assert otel["tool.safety.decision"] == "DENY"
         assert otel["tool.safety.risk_level"] == "CRITICAL"
         assert otel["tool.safety.rule_id"] == "R001"
-        assert otel["tool.safety.blocked"] == "True"
-        assert otel["tool.safety.masked"] == "False"
+        assert otel["tool.safety.blocked"] == "true"
+        assert otel["tool.safety.masked"] == "false"
 
     def test_scaninput_defaults(self):
         """ScanInput should have sensible defaults."""
@@ -153,9 +153,9 @@ class TestBashScanner:
     def test_bash_pipe_sensitive(self, scanner: SafetyScanner):
         """cat /etc/passwd | grep root should be detected."""
         report = scanner.scan(ScanInput("cat /etc/passwd | grep root", ScriptType.BASH))
-        # Should detect sensitive file read
-        sensitive = [m for m in report.matches if m.rule_id in ("R002", )]
-        assert len(sensitive) > 0 or report.decision == SafetyDecision.DENY
+        # Should detect sensitive file read (R002)
+        sensitive = [m for m in report.matches if m.rule_id == "R002"]
+        assert len(sensitive) > 0, f"Expected R002 match, got: {[m.rule_id for m in report.matches]}"
 
     def test_fork_bomb_detected(self, scanner: SafetyScanner):
         """Fork bomb should be detected (R006)."""
@@ -206,10 +206,8 @@ class TestPythonScanner:
         """Hardcoded API key should be detected (R007)."""
         content = _load_sample("leak_api_key.py")
         report = scanner.scan(ScanInput(content, ScriptType.PYTHON))
-        # Should detect the API key assignment
         r007 = [m for m in report.matches if m.rule_id == "R007"]
-        print(f"R007 matches: {[m.evidence for m in r007]}")
-        # Note: AST-based detection of string literals is best-effort
+        assert len(r007) > 0, f"Expected R007 match, got: {[m.rule_id for m in report.matches]}"
 
     def test_read_env_file_denied(self, scanner: SafetyScanner):
         """open('.env') should be blocked (R002)."""
