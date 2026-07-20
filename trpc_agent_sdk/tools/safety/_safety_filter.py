@@ -34,7 +34,6 @@ from trpc_agent_sdk.log import logger
 from ._audit import AuditLogger
 from ._policy import SafetyPolicy
 from ._scanner import SafetyScanner
-from ._types import SafetyDecision
 from ._types import SafetyReport
 from ._types import ScanInput
 from ._types import ScriptType

@@ -39,10 +39,8 @@ from trpc_agent_sdk.log import logger
 from ._audit import AuditLogger
 from ._policy import SafetyPolicy
 from ._scanner import SafetyScanner
-from ._types import SafetyReport
 from ._types import ScanInput
 from ._types import ScriptType
-from ._types import SafetyDecision
 
 _DEFAULT_POLICY_PATH = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
@@ -185,7 +183,6 @@ class SafetyWrapper:
         Returns:
             The SafetyReport dict.
         """
-        import asyncio  # noqa: E811
         st = self._parse_script_type(script_type)
         scan_input = ScanInput(
             script_content=script_content,

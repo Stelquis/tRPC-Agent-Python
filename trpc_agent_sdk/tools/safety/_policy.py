@@ -26,8 +26,6 @@ from typing import Optional
 
 import yaml
 
-from trpc_agent_sdk.log import logger
-
 from ._types import RiskLevel
 from ._types import SafetyDecision
 

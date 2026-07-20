@@ -15,8 +15,6 @@ from __future__ import annotations
 import re
 from typing import Optional
 
-from trpc_agent_sdk.log import logger
-
 from ._policy import SafetyPolicy
 from ._types import RiskCategory
 from ._types import RiskLevel

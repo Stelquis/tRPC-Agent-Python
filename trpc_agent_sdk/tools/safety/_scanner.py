@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import datetime
 import time
-from typing import Optional
 
 from trpc_agent_sdk.log import logger
 
