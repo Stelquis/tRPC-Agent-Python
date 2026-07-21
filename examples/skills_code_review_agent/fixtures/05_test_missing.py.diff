@@ -1,0 +1,23 @@
+--- a/src/calculator.py
++++ b/src/calculator.py
+@@ -1,8 +1,18 @@
+-"""Simple calculator module."""
++"""Calculator module with interest calculation."""
+ 
+ 
+ def add(a: int, b: int) -> int:
+     """Add two numbers."""
+     return a + b
+ 
+ 
+ def subtract(a: int, b: int) -> int:
+     """Subtract two numbers."""
+     return a - b
++
++
++def calculate_interest(principal: float, rate: float, time: int) -> float:
++    """Calculate compound interest.
++
++    This is a new function without corresponding test coverage.
++    """
++    return principal * (1 + rate) ** time

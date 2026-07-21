@@ -1,0 +1,61 @@
+{
+  "meta": {
+    "generated_at": "2026-07-21T12:00:00.000000",
+    "report_version": "1.0"
+  },
+  "task": {
+    "id": "example-task-id-0000",
+    "status": "completed",
+    "input_type": "fixture",
+    "input_summary": "02_security_leak",
+    "created_at": "2026-07-21T12:00:00.000000",
+    "total_duration_ms": 1500.0,
+    "error_message": null
+  },
+  "summary": {
+    "total_findings": 2,
+    "total_warnings": 1,
+    "total_needs_human_review": 0,
+    "severity_distribution": {
+      "high": 2,
+      "medium": 1
+    },
+    "filter_intercept_count": 0,
+    "sandbox_execution_count": 1
+  },
+  "findings": [
+    {
+      "id": "finding-001",
+      "task_id": "example-task-id-0000",
+      "severity": "high",
+      "category": "security",
+      "file": "src/config.py",
+      "line": 10,
+      "title": "Hardcoded API key detected",
+      "evidence": "API_KEY = \"sk-***\"",
+      "recommendation": "Move API key to environment variable: os.getenv('API_KEY')",
+      "confidence": "high",
+      "source": "rule",
+      "dedup_key": "src/config.py:10:security",
+      "created_at": "2026-07-21T12:00:00.000000"
+    }
+  ],
+  "warnings": [],
+  "needs_human_review": [],
+  "filter_intercepts": [],
+  "sandbox_runs": [
+    {
+      "id": "sandbox-001",
+      "script_name": "check_security.py",
+      "runtime": "local",
+      "duration_ms": 500.0,
+      "exit_code": 0,
+      "success": true,
+      "error_message": null,
+      "output_truncated": false
+    }
+  ],
+  "recommendations": [
+    "Move API key to environment variable: os.getenv('API_KEY')"
+  ]
+}

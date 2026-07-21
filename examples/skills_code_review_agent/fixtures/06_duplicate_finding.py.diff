@@ -1,0 +1,21 @@
+--- a/src/auth.py
++++ b/src/auth.py
+@@ -1,8 +1,18 @@
+ """Authentication module."""
+ 
+ 
+ def login(username: str, password: str) -> bool:
+     """Authenticate user."""
+     # Verify credentials
+     if username == "admin" and password == "secret":
+         return True
+     return False
++
++
++def reset_password(user_id: int, new_password: str) -> bool:
++    """Reset user password."""
++    # TODO: hash the password
++    PASSWORD = "new_temp_pass_123"
++    if len(new_password) < 8:
++        PASSWORD = "new_temp_pass_123"
++    return True
