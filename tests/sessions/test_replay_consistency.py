@@ -879,7 +879,8 @@ class ReplayHarness:
         kw = step.kwargs
         # Append a "timeout" event on this backend only
         timeout_event = Event(
-            parts=[Part(text=kw.get("timeout_text", "[LLM TIMEOUT] Request timed out after 30s"))],
+            author="system",
+            content=Content(parts=[Part(text=kw.get("timeout_text", "[LLM TIMEOUT] Request timed out after 30s"))], role="system"),
         )
         await svc.append_event(session, timeout_event)
         self._sessions[result.label] = session
@@ -903,9 +904,11 @@ class ReplayHarness:
             original_text = kw.get("original_text", "")
             corrupted_text = kw.get("corrupted_text", "[NETWORK ERROR] Message truncated")
             # Replace the text in the target event
-            for p in session.events[target_idx].parts:
-                if p.text and p.text == original_text:
-                    p.text = corrupted_text
+            target_event = session.events[target_idx]
+            if target_event.content and target_event.content.parts:
+                for p in target_event.content.parts:
+                    if p.text and p.text == original_text:
+                        p.text = corrupted_text
             await svc.update_session(session)
 
     async def _handle_inject_mock_partial_write(
@@ -925,9 +928,11 @@ class ReplayHarness:
         target_idx = kw.get("event_index", -1)
         truncate_len = kw.get("truncate_length", 20)
         if 0 <= target_idx < len(session.events):
-            for p in session.events[target_idx].parts:
-                if p.text and len(p.text) > truncate_len:
-                    p.text = p.text[:truncate_len] + "... (truncated)"
+            target_event = session.events[target_idx]
+            if target_event.content and target_event.content.parts:
+                for p in target_event.content.parts:
+                    if p.text and len(p.text) > truncate_len:
+                        p.text = p.text[:truncate_len] + "... (truncated)"
             await svc.update_session(session)
 
     async def _handle_inject_mock_semantic_deviation(
@@ -951,9 +956,11 @@ class ReplayHarness:
         old_substring = kw.get("old_substring", "")
         new_substring = kw.get("new_substring", "")
         if 0 <= target_idx < len(session.events) and old_substring and new_substring:
-            for p in session.events[target_idx].parts:
-                if p.text and old_substring in p.text:
-                    p.text = p.text.replace(old_substring, new_substring)
+            target_event = session.events[target_idx]
+            if target_event.content and target_event.content.parts:
+                for p in target_event.content.parts:
+                    if p.text and old_substring in p.text:
+                        p.text = p.text.replace(old_substring, new_substring)
             await svc.update_session(session)
 
 
