@@ -18,7 +18,7 @@ from pathlib import Path
 
 def init_db(db_path: str) -> None:
     """Initialize the database by executing schema.sql."""
-    schema_path = Path(__file__).parent / "db" / "schema.sql"
+    schema_path = Path(__file__).parent / "schema.sql"
     if not schema_path.exists():
         print(f"Error: schema.sql not found at {schema_path}", file=sys.stderr)
         sys.exit(1)

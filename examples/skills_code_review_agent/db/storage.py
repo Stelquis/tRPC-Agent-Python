@@ -22,7 +22,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Optional
 
-from .models import (
+from ..models import (
     FilterIntercept,
     Finding,
     MonitorSummary,
@@ -120,7 +120,7 @@ class SqliteStorage(StorageABC):
         return conn
 
     def _init_db(self) -> None:
-        schema_path = Path(__file__).parent / "db" / "schema.sql"
+        schema_path = Path(__file__).parent / "schema.sql"
         if not schema_path.exists():
             # Fallback: inline schema (for packaged distribution)
             return

@@ -18,7 +18,7 @@ from .models import (
     SandboxRun,
     Severity,
 )
-from .storage import SqliteStorage, StorageABC
+from .db.storage import SqliteStorage, StorageABC
 
 __all__ = [
     "Severity",
