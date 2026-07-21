@@ -584,6 +584,10 @@ class ReplayHarness:
         "inject_reorder_events": "_handle_inject_reorder_events",
         "inject_summary_session_id": "_handle_inject_summary_session_id",
         "inject_skip_append": "_handle_inject_skip_append",
+        "inject_mock_llm_timeout": "_handle_inject_mock_llm_timeout",
+        "inject_mock_network_failure": "_handle_inject_mock_network_failure",
+        "inject_mock_partial_write": "_handle_inject_mock_partial_write",
+        "inject_mock_semantic_deviation": "_handle_inject_mock_semantic_deviation",
     }
 
     def __init__(self):
@@ -857,6 +861,101 @@ class ReplayHarness:
         logger.info("inject_skip_append removed event author=%s on %s", removed.author, result.label)
         await svc.update_session(session)
 
+    # ── Mock-based injection handlers ──────────────────────────────────
+
+    async def _handle_inject_mock_llm_timeout(
+        self,
+        step: ReplayStep,
+        svc: SessionServiceABC,
+        mem: MemoryServiceABC,
+        result: RawResult,
+    ) -> None:
+        """Simulate an LLM call timeout by appending a timeout marker event
+        on the injected backend only. The other backend receives a normal
+        response, creating a cross-backend inconsistency."""
+        session = self._sessions.get(result.label)
+        if session is None:
+            return
+        kw = step.kwargs
+        # Append a "timeout" event on this backend only
+        timeout_event = Event(
+            parts=[Part(text=kw.get("timeout_text", "[LLM TIMEOUT] Request timed out after 30s"))],
+        )
+        await svc.append_event(session, timeout_event)
+        self._sessions[result.label] = session
+
+    async def _handle_inject_mock_network_failure(
+        self,
+        step: ReplayStep,
+        svc: SessionServiceABC,
+        mem: MemoryServiceABC,
+        result: RawResult,
+    ) -> None:
+        """Simulate a network failure during event append by altering the
+        event's text content on the injected backend. The other backend
+        retains the original text, creating a detectable difference."""
+        session = self._sessions.get(result.label)
+        if session is None or not session.events:
+            return
+        kw = step.kwargs
+        target_idx = kw.get("event_index", -1)
+        if 0 <= target_idx < len(session.events):
+            original_text = kw.get("original_text", "")
+            corrupted_text = kw.get("corrupted_text", "[NETWORK ERROR] Message truncated")
+            # Replace the text in the target event
+            for p in session.events[target_idx].parts:
+                if p.text and p.text == original_text:
+                    p.text = corrupted_text
+            await svc.update_session(session)
+
+    async def _handle_inject_mock_partial_write(
+        self,
+        step: ReplayStep,
+        svc: SessionServiceABC,
+        mem: MemoryServiceABC,
+        result: RawResult,
+    ) -> None:
+        """Simulate a partial write failure by truncating an event's text
+        on the injected backend. This mimics real-world scenarios where
+        a write operation completes partially (e.g., half the text is saved)."""
+        session = self._sessions.get(result.label)
+        if session is None or not session.events:
+            return
+        kw = step.kwargs
+        target_idx = kw.get("event_index", -1)
+        truncate_len = kw.get("truncate_length", 20)
+        if 0 <= target_idx < len(session.events):
+            for p in session.events[target_idx].parts:
+                if p.text and len(p.text) > truncate_len:
+                    p.text = p.text[:truncate_len] + "... (truncated)"
+            await svc.update_session(session)
+
+    async def _handle_inject_mock_semantic_deviation(
+        self,
+        step: ReplayStep,
+        svc: SessionServiceABC,
+        mem: MemoryServiceABC,
+        result: RawResult,
+    ) -> None:
+        """Simulate a memory semantic deviation by replacing event text with
+        subtly different content that changes the meaning. The event order and
+        structure remain identical — only the semantic content differs.
+
+        This mimics real-world scenarios where memory corruption causes subtle
+        semantic drift (e.g., dollar amounts, dates, or names are slightly off)."""
+        session = self._sessions.get(result.label)
+        if session is None or not session.events:
+            return
+        kw = step.kwargs
+        target_idx = kw.get("event_index", -1)
+        old_substring = kw.get("old_substring", "")
+        new_substring = kw.get("new_substring", "")
+        if 0 <= target_idx < len(session.events) and old_substring and new_substring:
+            for p in session.events[target_idx].parts:
+                if p.text and old_substring in p.text:
+                    p.text = p.text.replace(old_substring, new_substring)
+            await svc.update_session(session)
+
 
 # ---------------------------------------------------------------------------
 # Pytest tests
@@ -891,6 +990,10 @@ _INJECTED_CASES = [
     "case_08_exception_recovery",
     "case_09_injected_event_order",
     "case_10_injected_summary_session",
+    "case_11_mock_llm_timeout",
+    "case_12_mock_network_failure",
+    "case_13_mock_partial_write",
+    "case_14_mock_semantic_deviation",
 ]
 
 
