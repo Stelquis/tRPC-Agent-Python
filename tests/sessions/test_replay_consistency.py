@@ -1312,8 +1312,9 @@ async def test_generate_aggregated_diff_report(
     output_path.write_text(json.dumps(output, indent=2, ensure_ascii=False), encoding="utf-8")
 
     # ── Assertions ──
-    assert output["total_cases"] == len(_ALL_CASES), (
-        f"Expected {len(_ALL_CASES)} cases, got {output['total_cases']}"
+    all_cases = list_replay_cases()
+    assert output["total_cases"] == len(all_cases), (
+        f"Expected {len(all_cases)} cases, got {output['total_cases']}"
     )
     # Normal cases (1-6) should pass
     for r in all_reports:
