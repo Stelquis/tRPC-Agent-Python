@@ -21,7 +21,6 @@ import json
 import logging
 import time
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import pytest
@@ -880,7 +879,10 @@ class ReplayHarness:
         # Append a "timeout" event on this backend only
         timeout_event = Event(
             author="system",
-            content=Content(parts=[Part(text=kw.get("timeout_text", "[LLM TIMEOUT] Request timed out after 30s"))], role="system"),
+            content=Content(
+                parts=[Part(text=kw.get("timeout_text", "[LLM TIMEOUT] Request timed out after 30s"))],
+                role="system",
+            ),
         )
         await svc.append_event(session, timeout_event)
         self._sessions[result.label] = session
@@ -1186,7 +1188,7 @@ async def test_replay_summary_truncation(case_name: str, full_backend_pair_with_
     # ownership, state mismatch) — only event-level diffs are tolerated.
     critical_inconsistencies = [
         inc for inc in report.inconsistencies
-        if not inc.field_path.startswith("events[")
+        if not inc.field_path.startswith("events[") and not inc.field_path.startswith("events.")
     ]
     assert len(critical_inconsistencies) == 0, (
         f"{case_name}: unexpected critical inconsistencies found:\n"

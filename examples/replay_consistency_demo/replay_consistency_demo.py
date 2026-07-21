@@ -32,7 +32,6 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 
 from trpc_agent_sdk.events import Event
-from trpc_agent_sdk.models import LlmRequest, OpenAIModel
 from trpc_agent_sdk.sessions import (
     InMemorySessionService,
     SessionServiceConfig,
