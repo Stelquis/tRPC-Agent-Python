@@ -1,80 +1,84 @@
-# Async Error Rules
+# 异步错误规则
 
-## 1. Missing `await`
+## 概述
 
-Detect async functions that call other async functions without `await`.
+检测异步代码中常见的错误模式，包括未处理的异步异常、协程泄漏、事件循环阻塞和资源管理不当。
 
-### Patterns
+## 规则列表
 
-- `async def foo():` calls `bar()` where `bar` is `async`
-- Missing `await` before `bar()`
-- `asyncio.create_task(...)` result not stored or awaited
+### AE-01: 异步上下文资源未关闭
 
-### Severity
+**严重级别**: Warning
 
-- **HIGH**: Async function called without await, coroutine is discarded
-- **MEDIUM**: Async function called without await but result is used later
+**描述**: 使用 `aiohttp.ClientSession`、`asyncpg.Connection` 等异步资源时未使用 `async with` 管理生命周期。
 
-### Fix
+**检测模式**:
+- `session = aiohttp.ClientSession()` 后未使用 `async with`
+- 在异步函数中打开连接后未关闭
+- 未使用 `try/finally` 确保资源释放
 
+**修复建议**:
 ```python
-# Bad
-async def fetch_data():
-    result = fetch_from_api()  # Missing await
+# 错误
+session = aiohttp.ClientSession()
+resp = await session.get(url)
 
-# Good
-async def fetch_data():
-    result = await fetch_from_api()
-```
-
-## 2. Missing `try-finally` / `async with`
-
-Detect async resources that are not properly cleaned up.
-
-### Patterns
-
-- `async def` opens a resource but no `try-finally` or `async with`
-- `await session.get()` without closing the session
-- `await lock.acquire()` without `try-finally lock.release()`
-
-### Severity
-
-- **HIGH**: Resource leak in async context
-- **MEDIUM**: Missing cleanup but resource is short-lived
-
-### Fix
-
-```python
-# Bad
-session = await aiohttp.ClientSession()
-result = await session.get(url)
-
-# Good
+# 正确
 async with aiohttp.ClientSession() as session:
     async with session.get(url) as resp:
-        result = await resp.text()
+        return await resp.json()
 ```
 
-## 3. Unhandled Task Exception
+### AE-02: 阻塞调用在异步代码中
 
-Detect `asyncio.create_task` results that are not awaited or caught.
+**严重级别**: Warning
 
-### Patterns
+**描述**: 在异步代码中使用 `time.sleep()` 等阻塞调用，会导致事件循环阻塞。
 
-- `task = asyncio.create_task(coro())` without `await task` or `try-except`
-- No `task.add_done_callback()` to handle exceptions
+**检测模式**:
+- `time.sleep(n)` — 阻塞调用
+- `requests.get()` — 同步 HTTP 请求
+- 同步文件 I/O 操作
 
-### Severity
-
-- **MEDIUM**: Task exception will be silently lost on garbage collection
-
-### Fix
-
+**修复建议**:
 ```python
-# Bad
-asyncio.create_task(background_work())
+# 错误
+time.sleep(1)
 
-# Good
-task = asyncio.create_task(background_work())
-task.add_done_callback(lambda t: t.exception() if t.done() else None)
+# 正确
+await asyncio.sleep(1)
 ```
+
+### AE-03: 未处理的异步异常
+
+**严重级别**: Warning
+
+**描述**: `asyncio.gather()` 等并发调用未处理异常，可能导致任务静默失败。
+
+**检测模式**:
+- `asyncio.gather(tasks)` 未使用 `return_exceptions=True`
+- 未捕获 `asyncio.TimeoutError`
+- 未处理协程中的异常
+
+**修复建议**:
+```python
+# 错误
+results = await asyncio.gather(*tasks)
+
+# 正确
+results = await asyncio.gather(*tasks, return_exceptions=True)
+for r in results:
+    if isinstance(r, Exception):
+        handle_error(r)
+```
+
+### AE-04: 协程泄漏
+
+**严重级别**: Warning
+
+**描述**: 创建了协程对象但未 await 执行，导致协程泄漏。
+
+**检测模式**:
+- 调用异步函数但未使用 `await`
+- 创建 `Task` 未跟踪其完成状态
+- 未使用 `asyncio.create_task()` 的返回值

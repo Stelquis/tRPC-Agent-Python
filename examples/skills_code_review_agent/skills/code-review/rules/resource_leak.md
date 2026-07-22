@@ -1,83 +1,75 @@
-# Resource Leak Rules
+# 资源泄漏规则
 
-## 1. Unclosed File Handles
+## 概述
 
-Detect file operations without proper closure.
+检测代码中可能出现的资源泄漏模式，包括文件句柄、网络连接、数据库连接和内存泄漏。
 
-### Patterns
+## 规则列表
 
-- `open(path)` without `with` statement or `.close()`
-- `Path.read_text()` / `Path.write_text()` are safe (auto-close)
-- Multiple `open()` calls in a function without tracking
+### RL-01: 文件句柄未关闭
 
-### Severity
+**严重级别**: Warning
 
-- **HIGH**: File opened in a loop or long-lived function without `with`
-- **MEDIUM**: File opened but eventually closed in a different code path
+**描述**: 使用 `open()` 打开文件后未使用 `with` 语句或未显式调用 `close()`，可能导致文件句柄泄漏。
 
-### Fix
+**检测模式**:
+- `open(path).read()` — 未关闭文件句柄
+- `f = open(path)` 后无对应的 `f.close()` 调用
+- 异常路径中未释放文件句柄
 
+**修复建议**:
 ```python
-# Bad
-f = open("data.txt")
-data = f.read()
+# 错误
+f = open("data.txt", "r")
+content = f.read()
 
-# Good
-with open("data.txt") as f:
-    data = f.read()
+# 正确
+with open("data.txt", "r") as f:
+    content = f.read()
 ```
 
-## 2. Unclosed Network Connections
+### RL-02: 连接未释放
 
-Detect network connections without proper cleanup.
+**严重级别**: Warning
 
-### Patterns
+**描述**: 数据库连接、HTTP 连接等网络资源在使用后未释放。
 
-- `requests.get()` without session context — safe (auto-closes)
-- `http.client.HTTPConnection` without `.close()`
-- `websocket.connect()` without `close()`
-- `aiohttp.ClientSession()` without `async with`
+**检测模式**:
+- `sqlite3.connect()` 后无 `connection.close()`
+- `pymongo.MongoClient()` 后无 `client.close()`
+- `redis.Redis()` 后无连接释放
 
-### Severity
+### RL-03: 内存泄漏模式
 
-- **HIGH**: Connection object created without context manager
-- **MEDIUM**: Connection is eventually closed but implicitly
+**严重级别**: Suggestion
 
-### Fix
+**描述**: 在循环中累积数据、未清理的缓存、全局变量增长等内存泄漏模式。
 
+**检测模式**:
+- 在循环中向列表追加大量数据
+- 未设置上限的 LRU 缓存
+- 模块级别的可变数据结构持续增长
+
+**修复建议**:
 ```python
-# Bad
-conn = http.client.HTTPConnection("example.com")
-conn.request("GET", "/")
-resp = conn.getresponse()
+# 处理大文件时使用流式读取
+def process_large_file(path):
+    with open(path, "r") as f:
+        for line in f:
+            yield process(line)
 
-# Good
-with http.client.HTTPConnection("example.com") as conn:
-    conn.request("GET", "/")
-    resp = conn.getresponse()
+# 使用生成器处理大数据集
+def get_large_data():
+    for item in db.query_large():
+        yield transform(item)
 ```
 
-## 3. Unclosed io.BytesIO / StringIO
+### RL-04: 资源未在异常路径中释放
 
-Detect in-memory stream objects that are not closed.
+**严重级别**: Warning
 
-### Patterns
+**描述**: 在异常发生时，已分配的资源未正确释放。
 
-- `io.BytesIO()` or `io.StringIO()` created without `.close()`
-- While these are GC'd, failing to close can mask bugs
-
-### Severity
-
-- **LOW**: Memory will be freed by GC, but close() is still recommended
-
-### Fix
-
-```python
-# Bad
-buf = io.StringIO()
-buf.write("data")
-
-# Good
-with io.StringIO() as buf:
-    buf.write("data")
-```
+**检测模式**:
+- 在 `try` 块中分配资源，但 `except` 或 `finally` 中未释放
+- 提前 `return` 时未释放资源

@@ -1,95 +1,85 @@
 #!/usr/bin/env python3
-"""Parse a unified diff and extract change features.
+"""Parse a unified diff file and output structured change information.
 
 Usage:
-    python3 parse_diff.py < input.diff
-    python3 parse_diff.py --file input.diff
+    python parse_diff.py <diff_file> <output_file>
 
-Outputs JSON summary of changed files, hunks, and line numbers.
+Output:
+    JSON file with keys: files, total_additions, total_deletions, files_changed
 """
 
 import json
 import re
 import sys
-from typing import Optional
+from pathlib import Path
+from typing import Any
 
 
-def parse_diff(diff_text: str) -> dict:
-    """Parse unified diff and return structured summary."""
-    files = []
-    current_file: Optional[dict] = None
-    current_hunk: Optional[dict] = None
+def parse_diff(diff_path: str) -> dict[str, Any]:
+    """Parse a unified diff file into structured change information."""
+    content = Path(diff_path).read_text(encoding="utf-8")
+    files: list[dict[str, Any]] = []
+    current_file: dict[str, Any] | None = None
+    total_additions = 0
+    total_deletions = 0
 
-    for line in diff_text.splitlines():
-        # File headers
-        if line.startswith("--- "):
+    for line in content.splitlines():
+        if line.startswith("+++ b/"):
             if current_file:
                 files.append(current_file)
-            current_file = {"old_path": line[4:].strip(), "new_path": "", "hunks": []}
-            continue
-        if line.startswith("+++ ") and current_file:
-            current_file["new_path"] = line[4:].strip()
-            continue
-
-        # Hunk header
-        hunk_match = re.match(r"^@@ -(\d+),?(\d*) \+(\d+),?(\d*) @@", line)
-        if hunk_match and current_file is not None:
-            current_hunk = {
-                "old_start": int(hunk_match.group(1)),
-                "old_count": int(hunk_match.group(2)) if hunk_match.group(2) else 1,
-                "new_start": int(hunk_match.group(3)),
-                "new_count": int(hunk_match.group(4)) if hunk_match.group(4) else 1,
-                "added_lines": [],
-                "removed_lines": [],
+            current_file = {
+                "path": line[6:],
+                "change_type": "modified",
+                "additions": 0,
+                "deletions": 0,
+                "hunks": [],
             }
-            current_file["hunks"].append(current_hunk)
             continue
 
-        # Track line numbers
-        if current_hunk is not None:
-            if line.startswith("+"):
-                current_hunk["added_lines"].append(
-                    current_hunk["new_start"] + len(current_hunk["added_lines"])
-                    + len(current_hunk.get("_context_lines", 0))
-                )
-            elif line.startswith("-"):
-                current_hunk["removed_lines"].append(
-                    current_hunk["old_start"] + len(current_hunk["removed_lines"])
-                    + len(current_hunk.get("_context_lines", 0))
-                )
-            elif line.startswith(" "):
-                current_hunk.setdefault("_context_lines", 0)
-                current_hunk["_context_lines"] += 1
+        hunk_match = re.match(r"^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@(.*)", line)
+        if hunk_match and current_file is not None:
+            hunk = {
+                "start_line": int(hunk_match.group(2)),
+                "content": line,
+                "added_lines": [],
+                "deleted_lines": [],
+            }
+            current_file["hunks"].append(hunk)
+            continue
+
+        if line.startswith("+") and not line.startswith("+++"):
+            total_additions += 1
+            if current_file and current_file["hunks"]:
+                current_file["additions"] += 1
+        elif line.startswith("-") and not line.startswith("---"):
+            total_deletions += 1
+            if current_file:
+                current_file["deletions"] += 1
 
     if current_file:
         files.append(current_file)
 
-    # Clean up internal tracking fields
-    for f in files:
-        for h in f["hunks"]:
-            h.pop("_context_lines", None)
-
     return {
-        "file_count": len(files),
         "files": files,
+        "total_additions": total_additions,
+        "total_deletions": total_deletions,
+        "files_changed": len(files),
     }
 
 
-def main() -> None:
-    diff_text: str
-    if len(sys.argv) > 2 and sys.argv[1] == "--file":
-        with open(sys.argv[2]) as f:
-            diff_text = f.read()
-    else:
-        diff_text = sys.stdin.read()
-
-    if not diff_text.strip():
-        print(json.dumps({"file_count": 0, "files": []}))
-        return
-
-    result = parse_diff(diff_text)
-    print(json.dumps(result, indent=2))
-
-
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) < 3:
+        print("Usage: python parse_diff.py <diff_file> <output_file>", file=sys.stderr)
+        sys.exit(1)
+
+    diff_file = sys.argv[1]
+    output_file = sys.argv[2]
+
+    result = parse_diff(diff_file)
+    Path(output_file).parent.mkdir(parents=True, exist_ok=True)
+    Path(output_file).write_text(
+        json.dumps(result, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    print(f"Parsed diff: {result['files_changed']} files, "
+          f"{result['total_additions']} additions, {result['total_deletions']} deletions")
